@@ -767,6 +767,11 @@ func load(config Config, origin string, loadSecret bool) error {
 
 	loadProxyFromEnv(config)
 	sanitizeAPIKey(config)
+	trimTrailingSlashFromURLS(config, "")
+	// trimTrailingSlashFromURLS(config, "additional_endpoints")
+	// trimTrailingSlashFromURLS(config, "logs_config.additional_endpoints")
+	// trimTrailingSlashFromURLS(config, "apm_config.additional_endpoints")
+	// trimTrailingSlashFromURLS(config, "process_config.additional_endpoints")
 	applyOverrides(config)
 	// setTracemallocEnabled *must* be called before setNumWorkers
 	setTracemallocEnabled(config)
@@ -812,6 +817,39 @@ func ResolveSecrets(config Config, origin string) error {
 // Avoid log ingestion breaking because of a newline in the API key
 func sanitizeAPIKey(config Config) {
 	config.Set("api_key", strings.TrimSpace(config.GetString("api_key")))
+}
+
+//trims a forward slash from the end of various config URL's, leave ae blank to trim site and dd_url
+func trimTrailingSlashFromURLS(config Config, ae string) error {
+	var urls []string
+
+	if ae == "" {
+		urls = append(urls, "site")
+		urls = append(urls, "dd_url")
+		for _, domain := range urls {
+			config.Set(domain, strings.TrimSuffix(config.GetString(domain), "/"))
+			testSuccess := config.GetString("site")
+			fmt.Println(testSuccess)
+		}
+	} else {
+
+		additionalEndpoints := make(map[string][]string)
+		sanitizedAdditionalEndpoints := make(map[string][]string)
+
+		err := config.UnmarshalKey(ae, &additionalEndpoints)
+
+		if err != nil {
+			return err
+		}
+
+		for domain, key := range additionalEndpoints {
+			strings.TrimSuffix(domain), "/")
+			sanitizedAdditionalEndpoints[domain] = key
+		}
+
+		//replace the additional endpoints config with config.Set(ae, sanitzedAdditionalEndpoints)
+	}
+	return nil
 }
 
 // GetMainInfraEndpoint returns the main DD Infra URL defined in the config, based on the value of `site` and `dd_url`
