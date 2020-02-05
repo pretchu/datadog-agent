@@ -767,11 +767,7 @@ func load(config Config, origin string, loadSecret bool) error {
 
 	loadProxyFromEnv(config)
 	sanitizeAPIKey(config)
-	trimTrailingSlashFromURLS(config, "")
-	// trimTrailingSlashFromURLS(config, "additional_endpoints")
-	// trimTrailingSlashFromURLS(config, "logs_config.additional_endpoints")
-	// trimTrailingSlashFromURLS(config, "apm_config.additional_endpoints")
-	// trimTrailingSlashFromURLS(config, "process_config.additional_endpoints")
+	trimTrailingSlashFromURLS(config)
 	applyOverrides(config)
 	// setTracemallocEnabled *must* be called before setNumWorkers
 	setTracemallocEnabled(config)
@@ -819,35 +815,37 @@ func sanitizeAPIKey(config Config) {
 	config.Set("api_key", strings.TrimSpace(config.GetString("api_key")))
 }
 
-//trims a forward slash from the end of various config URL's, leave ae blank to trim site and dd_url
-func trimTrailingSlashFromURLS(config Config, ae string) error {
+//trims a forward slash from the end of various config URL's (site, dd_url, and additional endpoints)
+func trimTrailingSlashFromURLS(config Config) error {
 	var urls []string
+	var additionalEndpointSelectors = []string{
+		"additional_endpoints",
+		"apm_config.additional_endpoints",
+		"logs_config.additional_endpoints",
+		"process_config.additional_endpoints",
+	}
 
-	if ae == "" {
-		urls = append(urls, "site")
-		urls = append(urls, "dd_url")
-		for _, domain := range urls {
-			config.Set(domain, strings.TrimSuffix(config.GetString(domain), "/"))
-			testSuccess := config.GetString("site")
-			fmt.Println(testSuccess)
-		}
-	} else {
+	urls = append(urls, "site")
+	urls = append(urls, "dd_url")
 
+	for _, domain := range urls {
+		config.Set(domain, strings.TrimSuffix(config.GetString(domain), "/"))
+	}
+
+	for _, es := range additionalEndpointSelectors {
 		additionalEndpoints := make(map[string][]string)
 		sanitizedAdditionalEndpoints := make(map[string][]string)
 
-		err := config.UnmarshalKey(ae, &additionalEndpoints)
+		err := config.UnmarshalKey(es, &additionalEndpoints)
 
 		if err != nil {
 			return err
 		}
-
 		for domain, key := range additionalEndpoints {
-			strings.TrimSuffix(domain), "/")
+			domain = strings.TrimSuffix(domain, "/")
 			sanitizedAdditionalEndpoints[domain] = key
 		}
-
-		//replace the additional endpoints config with config.Set(ae, sanitzedAdditionalEndpoints)
+		config.Set(es, sanitizedAdditionalEndpoints)
 	}
 	return nil
 }
