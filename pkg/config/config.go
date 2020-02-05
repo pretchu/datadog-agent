@@ -817,16 +817,16 @@ func sanitizeAPIKey(config Config) {
 
 //trims a forward slash from the end of various config URL's (site, dd_url, and additional endpoints)
 func trimTrailingSlashFromURLS(config Config) error {
-	var urls []string
+	var urls = []string{
+		"site",
+		"dd_url",
+	}
 	var additionalEndpointSelectors = []string{
 		"additional_endpoints",
 		"apm_config.additional_endpoints",
 		"logs_config.additional_endpoints",
 		"process_config.additional_endpoints",
 	}
-
-	urls = append(urls, "site")
-	urls = append(urls, "dd_url")
 
 	for _, domain := range urls {
 		config.Set(domain, strings.TrimSuffix(config.GetString(domain), "/"))

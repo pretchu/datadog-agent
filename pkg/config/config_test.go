@@ -379,6 +379,73 @@ additional_endpoints:
 	assert.EqualValues(t, expectedMultipleEndpoints, multipleEndpoints)
 }
 
+func TestTrimTrailingSlashFromURLS(t *testing.T) {
+	var urls = []string{
+		"site",
+		"dd_url",
+	}
+	var additionalEndpointSelectors = []string{
+		"additional_endpoints",
+		"apm_config.additional_endpoints",
+		"logs_config.additional_endpoints",
+		"process_config.additional_endpoints",
+	}
+	datadogYaml := `
+api_key: fakeapikey
+site: datadoghq.com/
+dd_url: https://7-17-0-app.agent.datadoghq.com/
+
+additional_endpoints:
+  testing.com/:
+  - fakekey
+  test2.com/:
+  - fakekey
+
+apm_config:
+  additional_endpoints:
+    testingapm.com/:
+    - fakekey
+    test2apm.com/:
+    - fakekey
+
+logs_config:
+  additional_endpoints:
+    testinglogs.com/:
+    - fakekey
+    test2logs.com/:
+    - fakekey
+
+process_config:
+  additional_endpoints:
+    testingproc.com/:
+    - fakekey
+    test2proc.com/:
+    - fakekey
+`
+	testConfig := setupConfFromYAML(datadogYaml)
+	trimTrailingSlashFromURLS(testConfig)
+
+	for _, u := range urls {
+		testString := testConfig.GetString(u)
+		if testString[len(testString)-1:] == "/" {
+			t.Errorf("Error: The key %v: has a vlue of %v -- The trailing forward slash was not properly trimmed", u, testConfig.GetString(u))
+		}
+	}
+	for _, es := range additionalEndpointSelectors {
+		additionalEndpoints := make(map[string][]string)
+		err := testConfig.UnmarshalKey(es, &additionalEndpoints)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for domain := range additionalEndpoints {
+			if domain[len(domain)-1:] == "/" {
+				t.Errorf("Error: The key %v: has a vlue of %v -- The trailing forward slash was not properly trimmed", es, domain)
+			}
+		}
+	}
+}
+
 func TestAddAgentVersionToDomain(t *testing.T) {
 	newURL, err := AddAgentVersionToDomain("https://app.datadoghq.com", "app")
 	require.Nil(t, err)
